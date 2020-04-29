@@ -141,7 +141,8 @@ function generateServer(file, cmd) {
         "main": "index.js",
         "scripts": {
           "prestart": "npm install",
-          "start": "node index.js"
+          "start": "node index.js",
+          "test": "jest --runInBand"
         },
         "keywords": [
           "OAI"
@@ -157,6 +158,10 @@ function generateServer(file, cmd) {
           "prom-client": "^12.0.0",
           "js-yaml": "^3.3.0",
           "oas-tools": "^2.1.4"
+        },
+        "devDependencies": {
+          "jest": "^25.3.0",
+          "supertest": "^4.0.2"
         }
       };
       fs.writeFileSync(process.cwd() + '/' + 'package.json', beautify(JSON.stringify(package_raw), {
@@ -164,9 +169,30 @@ function generateServer(file, cmd) {
         space_in_empty_paren: true
       }));
 
+      const jestConfig = `module.exports = {
+        testEnvironment: 'node',
+        name: 'unit test',
+        displayName: 'unit test',
+        collectCoverage: true,
+        coverageDirectory: '<rootDir>/coverage',
+        coverageReporters: ['lcov', 'html', 'json'],
+        testMatch: ['<rootDir>/tests/**/*.spec.js']
+      }`;
+      fs.writeFileSync(process.cwd() + '/' + 'jest.config.js', jestConfig, {
+        indent_size: 2,
+        space_in_empty_paren: true
+      });
+
       /* create unique files: controllers and services */
       if (!fs.existsSync('controllers')) {
         fs.mkdirSync('controllers');
+      }
+      if (!fs.existsSync('tests')) {
+        fs.mkdirSync('tests');
+      }
+      const testApiPath = path.join("tests", "api")
+      if (!fs.existsSync(testApiPath)) {
+        fs.mkdirSync(testApiPath);
       }
       var paths = oasDoc.paths;
       var opId;
@@ -174,7 +200,6 @@ function generateServer(file, cmd) {
       var controller_files = [];
       for (var oasPath in paths) {
         for (var method in paths[oasPath]) {
-
           if (paths[oasPath][method].operationId != undefined) {
             opId = generateName(paths[oasPath][method].operationId, undefined);
           } else {
@@ -198,20 +223,28 @@ function generateServer(file, cmd) {
             controller_files.push(controllerName);
             var controllerVariable = generateName(controllerName, "variable"); //sanitize variable name for controller's require
             fs.appendFileSync(process.cwd() + '/controllers/' + controllerName + '.js', "'use strict'\n\n");
+            fs.appendFileSync(process.cwd() + '/tests/api/' + controllerName + '.spec.js', "'use strict'\n\n");
           }
+          const testContent = `const {app, server} = require('../../');\nconst request = require('supertest');\n\ndescribe(\"When sending a ${method} request to ${oasPath}\", () => {});afterAll(() => {  server.close();});`
           var function_string_service = "module.exports." + opId + " = function " + opId + " (req, res, next) {\nres.send({message: 'This is the mockup controller for " + opId + "' });\n};\n\n";
           fs.appendFileSync(process.cwd() + '/controllers/' + controllerName + '.js', function_string_service);
+          fs.appendFileSync(process.cwd() + '/tests/api/' + controllerName + '.spec.js', testContent);
         }
+      }
+
+      const beautifyFile = (file, path) => {
+        logger.debug("Beautify file " + file);
+        var data = fs.readFileSync(path + file + ".js", 'utf8');
+        fs.writeFileSync(path + file + ".js", beautify(data, {
+          indent_size: 2,
+          space_in_empty_paren: true
+        }));
       }
 
       /* beautify files */
       for (var i = 0; i < controller_files.length; i++) {
-        logger.debug("Beautify file " + controller_files[i]);
-        var data = fs.readFileSync(process.cwd() + '/controllers/' + controller_files[i] + ".js", 'utf8');
-        fs.writeFileSync(process.cwd() + '/controllers/' + controller_files[i] + ".js", beautify(data, {
-          indent_size: 2,
-          space_in_empty_paren: true
-        }));
+        beautifyFile(controller_files[i], process.cwd() + '/controllers/');
+        beautifyFile(`${controller_files[i]}.spec`, process.cwd() + '/tests/api/');
       }
 
       /* create zip or dir */
