@@ -30,6 +30,7 @@
     "js-beautify": "^1.7.5",
     "js-yaml": "^3.13.0",
     "json2yaml": "^1.1.0",
+    "lodash": "^4.17.15",
     "lodash-compat": "^3.10.2",
     "node-zip": "^1.1.1",
     "path": "^0.12.7",

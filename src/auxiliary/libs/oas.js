@@ -19,7 +19,7 @@ else
 
 //TODO set up oas options in configFile
 let oasOptions = {
-  controllers: path.join(__dirname, '../controllers'),
+  controllers: path.join(__dirname, `../controllers${process.env.MOCK_RESPONSES ? '/__mocks__' : ''}`),
   customLogger: logger,
   strict: true,
   router: true,
