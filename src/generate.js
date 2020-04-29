@@ -109,7 +109,13 @@ function generateServer(file, cmd) {
       fs.copyFileSync(__dirname + '/auxiliary/README.md', './README.md');
 
       fs.copyFileSync(__dirname + '/auxiliary/index.js', './index.js');
-
+      if (!fs.existsSync('libs')) {
+        fs.mkdirSync('libs');
+      }
+      fs.copyFileSync(__dirname + '/auxiliary/libs/auth.js', './libs/auth.js');
+      fs.copyFileSync(__dirname + '/auxiliary/libs/logger.js', './libs/logger.js');
+      fs.copyFileSync(__dirname + '/auxiliary/libs/metrics.js', './libs/metrics.js');
+      fs.copyFileSync(__dirname + '/auxiliary/libs/oas.js', './libs/oas.js');
       if (!fs.existsSync('.oas-generator')) {
         fs.mkdirSync('.oas-generator');
       }
@@ -144,7 +150,11 @@ function generateServer(file, cmd) {
         "private": true,
         "dependencies": {
           "body-parser": "^1.18.3",
+          "winston": "^3.0.0",
+          "@okta/jwt-verifier": "^1.0.0",
+          "express-prom-bundle": "^6.0.0",
           "express": "^4.16.3",
+          "prom-client": "^12.0.0",
           "js-yaml": "^3.3.0",
           "oas-tools": "^2.1.4"
         }
@@ -186,16 +196,11 @@ function generateServer(file, cmd) {
 
           if (!controller_files.includes(controllerName)) {
             controller_files.push(controllerName);
-            controller_files.push(controllerName + "Service");
             var controllerVariable = generateName(controllerName, "variable"); //sanitize variable name for controller's require
-            var header = "'use strict' \n\nvar " + controllerVariable + " = require('./" + controllerName + "Service');\n\n";
-            fs.appendFileSync(process.cwd() + '/controllers/' + controllerName + ".js", header);
-            fs.appendFileSync(process.cwd() + '/controllers/' + controllerName + "Service.js", "'use strict'\n\n");
+            fs.appendFileSync(process.cwd() + '/controllers/' + controllerName + '.js', "'use strict'\n\n");
           }
-          var function_string = "module.exports." + opId + " = function " + opId + " (req, res, next) {\n" + controllerVariable + "." + opId + "(req.swagger.params, res, next);\n};\n\n";
           var function_string_service = "module.exports." + opId + " = function " + opId + " (req, res, next) {\nres.send({message: 'This is the mockup controller for " + opId + "' });\n};\n\n";
-          fs.appendFileSync(process.cwd() + '/controllers/' + controllerName + ".js", function_string);
-          fs.appendFileSync(process.cwd() + '/controllers/' + controllerName + "Service.js", function_string_service);
+          fs.appendFileSync(process.cwd() + '/controllers/' + controllerName + '.js', function_string_service);
         }
       }
 
@@ -214,7 +219,7 @@ function generateServer(file, cmd) {
       if (cmd.generateZip) { //option -z used: generate zip and delete folder
         zipdir('./' + projectName, {
           saveTo: projectName + '.zip'
-        }, function(err, buffer) {  //eslint-disable-line
+        }, function (err, buffer) {  //eslint-disable-line
           if (err) {
             logger.error('Compressor error: ', err);
           } else {
@@ -233,13 +238,13 @@ function generateServer(file, cmd) {
 }
 
 function configure(options) {
-    config.setConfigurations(options);
-    if (options.loglevel != undefined) {
-        logger = config.logger; //loglevel changes, then new logger is needed
-    }
+  config.setConfigurations(options);
+  if (options.loglevel != undefined) {
+    logger = config.logger; //loglevel changes, then new logger is needed
+  }
 }
 
 module.exports = {
-    generateServer: generateServer, // eslint-disable-line
-    configure: configure // eslint-disable-line
+  generateServer: generateServer, // eslint-disable-line
+  configure: configure // eslint-disable-line
 };
